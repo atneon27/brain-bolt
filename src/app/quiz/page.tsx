@@ -1,8 +1,7 @@
 
 import { QuizCreation } from '@/components/quiz/QuizCreation';
 import { getAuthSession } from '@/lib/nextauth';
-import { redirect } from 'next/navigation';
-import { title } from 'process';
+import { redirect } from 'next/navigation'; 
 import React from 'react'
 
 export const metadata = {
