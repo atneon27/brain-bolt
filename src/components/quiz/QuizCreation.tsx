@@ -14,7 +14,7 @@ import { BookOpen, CopyCheck } from 'lucide-react'
 import { Separator } from '../ui/separator'
 import { useMutation } from 'react-query'
 import { useRouter } from 'next/navigation'
-import { Alexandria } from 'next/font/google'
+
 
 
 interface Props {}
@@ -53,7 +53,7 @@ export const QuizCreation = (props: Props) => {
         }, {
             onSuccess: ({gameId}) => {
                 if(form.getValues('type') === 'mcq') {
-                    router.push(`/play/game/${gameId}`)
+                    router.push(`/play/mcq/${gameId}`)
                 } else {
                     router.push(`/play/open-ended/${gameId}`)
                 }
