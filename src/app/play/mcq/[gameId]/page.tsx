@@ -38,7 +38,7 @@ const MCQPage = async ({params }: Props) => {
     }
 
     return (
-        <MCQ game={game} />
+        <MCQ game={game} /> 
     )
 }
 
