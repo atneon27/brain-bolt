@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import axios from "axios";
 import { QuizCreationSchema } from "@/schemas/form/quiz";
-import { optimizeImage } from "next/dist/server/image-optimizer";
 
 export async function POST(req: Request, res: Response) {
   try {
