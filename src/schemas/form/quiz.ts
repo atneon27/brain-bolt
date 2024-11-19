@@ -6,4 +6,7 @@ export const QuizCreationSchema = z.object({
     amount: z.number().min(1).max(10),
 });
 
-
+export const CheckAnswerSchema = z.object({
+    questionId: z.string(),
+    userAnswer: z.string()
+});
