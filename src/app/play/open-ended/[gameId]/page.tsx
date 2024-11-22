@@ -17,6 +17,7 @@ const OpenEndedPage = async ({params: {gameId}}: Props) => {
     return (
         <div>
             {gameId}
+            This is the game Id which will be displayed on the page
         </div>
     )
 }
