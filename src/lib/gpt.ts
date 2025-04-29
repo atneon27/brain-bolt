@@ -1,8 +1,7 @@
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-    baseURL: process.env.MODEL_URL,
-    apiKey: process.env.GITHUB_TOKEN
+const client = new OpenAI({
+    apiKey: process.env.OPENAI_API
 });
 
 interface OutputFormat {
@@ -14,110 +13,126 @@ interface ReturnFormat {
     answer: string
 }
 
-export async function strict_output(
-    system_prompt: string,
-    user_prompt: string | string[],
-    output_format: OutputFormat,
-    default_category: string = "",
-    output_value_only: Boolean = false,
-    model: string = "gpt-4o-mini",
-    temperature: number = 1,
-    num_tries: number = 3,
-    verbose: boolean = false
-) : Promise<ReturnFormat[]> {
-    let error_msg: string = ""
-
-    for(let i = 0; i < num_tries; i++) {
-        let output_format_prompt: string = `\nYou are to output the following in json format: ${JSON.stringify(output_format)}. \nDo not put quotation marks or escape character \\ in the output fields.`;
-
-        // Add additional instructions to handle lists and dynamic elements in the output format
-        if (/\[.*?\]/.test(JSON.stringify(output_format))) {
-            output_format_prompt += `\nIf output field is a list, classify output into the best element of the list.`;
-        }
-
-        if (/<.*?>/.test(JSON.stringify(output_format))) {
-            output_format_prompt += `\nAny text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden\nAny output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}`;
-        }
-
-        if (Array.isArray(user_prompt)) {
-            output_format_prompt += `\nGenerate a list of json, one json for each input element.`;
-        }
-
-        const response = await openai.chat.completions.create({
-            temperature: temperature,
-            model: model,
-            messages: [
-                {
-                    role: "system",
-                    content: system_prompt + output_format_prompt + error_msg,
-                },
-                { role: "user", content: user_prompt.toString() },
-            ]
-        });
-
-        let res: string = response.choices[0].message?.content?.replace(/'/g, '"') ?? "";
-        res = res.replace(/(\w)"(\w)/g, "$1'$2");
-
-        if (verbose) {
-            console.log(
-                "System prompt:",
-                system_prompt + output_format_prompt + error_msg
-            );
-            console.log("\nUser prompt:", user_prompt);
-            console.log("\nGPT response:", res);
-        }
-
-        try {
-            let output: any = JSON.parse(res);
-
-            if (Array.isArray(user_prompt)) {
-                if (!Array.isArray(output)) {
-                    throw new Error("Output format not in a list of json");
-                }
-            } else {
-                output = [output];
+export async function generate_open_ended(
+    amount: string,
+    topic: string
+) {
+    const system_prompt = `You are a helpful AI that is able to generate exactly ${amount} pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array`
+    const user_prompt = `You are to generate a random hard open-ended questions about ${topic}`
+    const output_instructions = `Do not put quotation marks or escape character in the output fields. If output field is a list, classify output into the best element of the list. Any text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden. Any output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}. Generate a list of json, one json for each input element.`
+    
+    const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            {
+                role: "system",
+                content: system_prompt + output_instructions
+            },
+            {
+                role: "user",
+                content: user_prompt
             }
-
-            for (let index = 0; index < output.length; index++) {
-                for (const key in output_format) {
-                    // Skip keys with dynamic elements
-                    if (/<.*?>/.test(key)) {
-                        continue;
-                    }
-
-                    if (!(key in output[index])) {
-                        throw new Error(`${key} not in json output`);
-                    }
-
-                    if (Array.isArray(output_format[key])) {
-                        const choices = output_format[key] as string[];
-                        if (Array.isArray(output[index][key])) {
-                            output[index][key] = output[index][key][0];
+        ],
+        response_format: {
+            type: "json_schema",
+            json_schema: {
+                name: "outuput_schema",
+                description: "output schema for open-ended question",
+                strict: true,
+                schema: {
+                    type: "object",
+                    properties: {
+                        questions: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    question: {
+                                        type: "string",
+                                        description: "question"
+                                    },
+                                    answer: {
+                                        type: "string",
+                                        description: "answer with max length of 15 words"
+                                    }
+                                }, 
+                                required: ["question", "answer"],
+                                "additionalProperties": false
+                            }
                         }
-                        if (!choices.includes(output[index][key]) && default_category) {
-                            output[index][key] = default_category;
-                        }
-                        if (output[index][key].includes(":")) {
-                            output[index][key] = output[index][key].split(":")[0];
-                        }
-                    }
-                }
-
-                if (output_value_only) {
-                    output[index] = Object.values(output[index]);
-                    if (output[index].length === 1) {
-                        output[index] = output[index][0];
-                    }
+                    },
+                    required: ["questions"],
+                    "additionalProperties": false
                 }
             }
-
-            return Array.isArray(user_prompt) ? output : output[0];
-        } catch(e) {
-            error_msg = `\n\nResult: ${res}\n\nError message: ${e}`;
-            console.log("An exception occurred:", e);
-            console.log("Current invalid json format:", res);
         }
-    }
+    });
+    
+    return response.choices[0].message.content
+}
 
-    return [];
+export async function generate_mcq(topic: string) {
+    const system_prompt = "You are a helpful AI that is able to generate a pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array, in case of keywords only based options do not explain the answer just give the correct keyword as the answer"
+    const user_prompt = `You are to generate a random hard mcq questions about ${topic}`
+    const output_instructions = `Do not put quotation marks or escape character in the output fields. If output field is a list, classify output into the best element of the list. Any text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden. Any output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}. Generate a list of json, one json for each input element.`
+    
+    const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            {
+                role: "system",
+                content: system_prompt + output_instructions
+            }, {
+                role: "user",
+                content: user_prompt 
+            }
+        ],
+        response_format: {
+            type: "json_schema",
+            json_schema: {
+                name: "output_schema",
+                description: "output schema for mcq questions",
+                strict: true,
+                schema: {
+                    type: "object",
+                    properties: {
+                        questions: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    question: {
+                                        type: "string",
+                                        description: "question"
+                                    },
+                                    answer: {
+                                        type: "string",
+                                        description: "answer with max length of 15 words"
+                                    },
+                                    option1: {
+                                        type: "string",
+                                        description: "option1 with max length of 15 words"
+                                    },
+                                    option2: {
+                                        type: "string",
+                                        description: "option2 with max length of 15 words"
+                                    },
+                                    option3: {
+                                        type: "string",
+                                        description: "option3 with max length of 15 words"
+                                    }
+                                },
+                                required: ["question", "answer", "option1", "option2", "option3"],
+                                "additionalProperties": false
+                            }
+                        }
+                    },
+                    required: ["questions"],
+                    "additionalProperties": false
+                }
+            } 
+        }
+    });
+    
+    return response.choices[0].message.content
 }
