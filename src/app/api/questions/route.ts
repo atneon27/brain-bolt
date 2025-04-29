@@ -1,4 +1,4 @@
-import { strict_output } from "@/lib/gpt";
+import { generate_mcq, generate_open_ended } from "@/lib/gpt";
 import { getAuthSession } from "@/lib/nextauth";
 import { QuizCreationSchema } from "@/schemas/form/quiz";
 import { NextResponse } from "next/server";
@@ -19,40 +19,17 @@ export async function POST(req: Request, res: Response) {
     const { amount, topic, type } = QuizCreationSchema.parse(body);
     let questions: any;
     if (type === "open_ended") {
-      questions = await strict_output(
-        `You are a helpful AI that is able to generate exactly ${amount} pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array`,
-        new Array(amount).fill(
-          `You are to generate a random hard open-ended questions about ${topic}`
-        ),
-        {
-          question: "question",
-          answer: "answer with max length of 15 words",
-        }
-      );
+      const data = await generate_open_ended(amount, topic)
+      questions =  data?.questions   
     } else if (type === "mcq") {
-      questions = await strict_output(
-        "You are a helpful AI that is able to generate a pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array, in case of keywords only based options do not explain the answer just give the correct keyword as the answer",
-        new Array(amount).fill(
-          `You are to generate a random hard mcq question about ${topic}`
-        ),
-        {
-          question: "question",
-          answer: "answer with max length of 15 words",
-          option1: "option1 with max length of 15 words",
-          option2: "option2 with max length of 15 words",
-          option3: "option3 with max length of 15 words",
-        }
-      );
-    }
-
-    if(questions.length > amount) {
-      questions = questions.slice(0, amount);
+      const data = await generate_mcq(amount, topic)
+      questions = data?.questions
     }
     
     return NextResponse.json(
       {
         questions: questions,
-        amt: questions.length
+        amt: amount
       },
       {
         status: 200,

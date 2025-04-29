@@ -14,7 +14,7 @@ interface ReturnFormat {
 }
 
 export async function generate_open_ended(
-    amount: string,
+    amount: number,
     topic: string
 ) {
     const system_prompt = `You are a helpful AI that is able to generate exactly ${amount} pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array`
@@ -68,11 +68,15 @@ export async function generate_open_ended(
         }
     });
     
-    return response.choices[0].message.content
+    const data = response.choices[0].message.content
+    return JSON.parse(data ?? '') 
 }
 
-export async function generate_mcq(topic: string) {
-    const system_prompt = "You are a helpful AI that is able to generate a pair of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array, in case of keywords only based options do not explain the answer just give the correct keyword as the answer"
+export async function generate_mcq(
+    amount: number,
+    topic: string
+) {
+    const system_prompt = `You are a helpful AI that is able to generate exactly ${amount} of question and answers, the length of each answer should not be more than 15 words, store all the pairs of answers and questions in a JSON array, in case of keywords only based options do not explain the answer just give the correct keyword as the answer`
     const user_prompt = `You are to generate a random hard mcq questions about ${topic}`
     const output_instructions = `Do not put quotation marks or escape character in the output fields. If output field is a list, classify output into the best element of the list. Any text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden. Any output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}. Generate a list of json, one json for each input element.`
     
@@ -134,5 +138,6 @@ export async function generate_mcq(topic: string) {
         }
     });
     
-    return response.choices[0].message.content
+    const data = response.choices[0].message.content
+    return JSON.parse(data ?? '')
 }
