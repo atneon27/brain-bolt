@@ -25,7 +25,7 @@ export const QuizCreation = (props: Props) => {
 
     const {mutate: getQuestions, isLoading} = useMutation({
         mutationFn: async ({ amount, type, topic }: Input) => { 
-            const response = await axios.post(`http://localhost:3000/api/game`, {
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/game`, {
                 amount,
                 topic,
                 type
