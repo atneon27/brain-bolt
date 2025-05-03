@@ -4,7 +4,6 @@ import QuizMeCard from "@/components/dashboard/QuizMeCard";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { getAuthSession } from "@/lib/nextauth";
 import { redirect } from "next/navigation";
-import { title } from "process";
 import React from "react";
 
 type Props = {

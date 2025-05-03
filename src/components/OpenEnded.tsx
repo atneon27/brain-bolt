@@ -13,6 +13,7 @@ import { CheckAnswerSchema } from '@/schemas/form/quiz';
 import { useToast } from '@/hooks/use-toast';
 import { cn, formatTimeDelta } from '@/lib/utils';
 import { differenceInSeconds } from 'date-fns'
+import BlankAnswerInput from './BlankAnswerInput';
 
 type Props = {
     game: Game & {Question: Pick<Question, "id" | "question" | "answer">[]}
@@ -101,8 +102,9 @@ const OpenEnded = ({ game }: Props) => {
                 </CardHeader>
             </Card>
 
+
             <div className="flex flex-col items-center justify-center w-full mt-4">
-                
+                <BlankAnswerInput answer={currentQuestion.answer} />
             </div>
 
             <div className='flex flex-row justify-start gap-4'>
