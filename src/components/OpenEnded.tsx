@@ -23,57 +23,83 @@ const OpenEnded = ({ game }: Props) => {
     const [questionIndex, setQuestionIndex] = useState<number>(0);
     const [hasEnded, setHasEnded] = useState<boolean>(false);
     const [now, setNow] = useState<Date>(new Date());
+    const [blankAnswer, setBlankAnswer] = useState<string>("");
 
     const { toast } = useToast();
-
+    
     useEffect(() => {
         const interval = setInterval(() => {
             if(!hasEnded) {
                 setNow(new Date());
             }
         }, 1000);
-
+        
         return () => {
             clearInterval(interval);
         }
     }, [hasEnded])
-
+    
     const currentQuestion = useMemo(() => {
         return game.Question[questionIndex]
     }, [questionIndex, game.Question]);
-
+    
     const {mutate: checkAnswer, isLoading: isChecking} = useMutation({
         mutationFn: async () => {
+            let filledAnswer = blankAnswer
+            document.querySelectorAll("#user-blank-input").forEach((input) => {
+                filledAnswer = filledAnswer.replace("_____", (input as HTMLInputElement).value);
+                (input as HTMLInputElement).value = "";
+            })
+            
+            console.log(filledAnswer)
             const payload: z.infer<typeof CheckAnswerSchema> = {
                 questionId: currentQuestion.id,
-                userAnswer: ""
+                userAnswer: filledAnswer
             };
-
+            
             const response = await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/checkAnswer`, payload);
             return response.data;
         }
     });
-
-     const handleNext = useCallback(() => {
+    
+    const handleNext = useCallback(() => {
         if(isChecking) return;
         checkAnswer(
             undefined,
             {
-                onSuccess: ({percentageCorrect}) => {
+                onSuccess: ({percentageSimilar}) => {
+                    console.log(percentageSimilar)
                     toast({
-                        title: `Your answer is ${percentageCorrect ?? 0}% similar to the correct answer`,
+                        title: `Your answer is ${percentageSimilar ?? 0}% similar to the correct answer`,
                         description: "Mathced on the basis of similarity"
                     })
                     if(questionIndex == game.Question.length-1) {                        
                         setHasEnded(true);
                         return;
                     }
-                    setQuestionIndex(prev => prev + 1);
                 }
             }
         )
-    }, [checkAnswer, toast, isChecking])
+    }, [checkAnswer, questionIndex, toast, game.Question.length])
 
+    if(hasEnded) {
+        return (
+        <div className="absolute flex flex-col justify-center -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2">
+            <div className="px-4 py-2 mt-2 font-semibold text-white bg-green-500 rounded-md whitespace-nowrap">
+                You Completed in{" "}
+                {formatTimeDelta(differenceInSeconds(now, game.timeStarted))}
+            </div>
+            <Link
+                href={`/statistics/${game.id}`}
+                className={cn(buttonVariants({ size: "lg" }), "mt-2")}
+            >
+                View Statistics
+                <BarChart className="w-4 h-4 ml-2" />
+            </Link>
+        </div>
+        );
+    } 
+    
     return (
         <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 md:w-[80vw] max-w-4xl w-[90vw]">
             <div className="flex flex-row justify-between">
@@ -103,15 +129,15 @@ const OpenEnded = ({ game }: Props) => {
             </Card>
 
 
-            <div className="flex flex-col items-center justify-center w-full mt-4">
-                <BlankAnswerInput answer={currentQuestion.answer} />
+            <div className="flex flex-col items-center justify-center w-full my-4">
+                <BlankAnswerInput answer={currentQuestion.answer} setBlankAnswer={setBlankAnswer} />
             </div>
 
             <div className='flex flex-row justify-start gap-4'>
                 {(questionIndex != 0) ? <Button
                     disabled={isChecking || hasEnded} 
                     onClick={() => {
-                        setQuestionIndex(questionIndex - 1);
+                        setQuestionIndex(idx => idx - 1);
                     }}>
                         Previous
                         <ChevronLeft className='w-4 h-4 mr-2'/>
